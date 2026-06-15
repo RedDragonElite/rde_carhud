@@ -15,6 +15,8 @@ Built on ox_core · ox_lib · ox_inventory · oxmysql
 
 *Built by [Red Dragon Elite](https://rd-elite.com) | SerpentsByte*
 
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/c2e2f302-f15f-4559-868f-270e12e5df58" />
+
 ---
 
 ## 📖 Table of Contents
