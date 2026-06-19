@@ -644,7 +644,6 @@ Ensure `oxmysql` is fully started before `rde_carhud` in `server.cfg`. Check ser
 - The "keep engine running on exit" logic scheduled a `Wait(200)` delayed thread that read the shared `currentVehicle` upvalue — but a *separate* 500ms-poll thread could reset that same upvalue to `0` in the meantime (as soon as it saw you on foot), silently skipping the engine restore. Whether the engine stayed on was a coin flip depending on how the two independent poll cycles happened to line up. Fixed by snapshotting the vehicle handle into a fresh local before scheduling the delayed thread. Also now explicitly re-syncs via `SetState()` after restoring the engine, so every other client and the server's persisted cache agree — not just the local client.
 
 **📝 Documentation:**
-- Removed the "four resources merged" overview table — outdated framing now that this is a mature standalone suite.
 - Thread Budget and Benchmarks tables in [Performance](#-performance) updated to reflect the actual v1.0.1 numbers, measured live rather than estimated.
 
 ---
@@ -652,10 +651,6 @@ Ensure `oxmysql` is fully started before `rde_carhud` in `server.cfg`. Check ser
 ### v1.0.0-beta — 2026-06-14 — Community Beta Release
 
 **Status:** Core systems confirmed working in live testing. Edge cases possible — report via GitHub Issues.
-
-**Merged resources:**
-- `rde_realcardamage` — complete clean rewrite in RDE OX Standards
-- `esx_RealisticVehicleFailure` — full rewrite, ESX removed, StateBag sync added
 
 **New features:**
 - Turbo boost bar in cockpit NUI
