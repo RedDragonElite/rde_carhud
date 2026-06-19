@@ -13,6 +13,8 @@
 
 Built on ox_core · ox_lib · ox_inventory · oxmysql
 
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/7935aee6-2bf8-4189-a9fb-860113ddfcad" />
+
 *Built by [Red Dragon Elite](https://rd-elite.com) | SerpentsByte*
 
 ---
