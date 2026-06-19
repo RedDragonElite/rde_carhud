@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════
--- RDE | VEHICLE COCKPIT v1.0.0 — CLIENT/WHEELDMG
+-- RDE | VEHICLE COCKPIT v1.0.1 — CLIENT/WHEELDMG
 -- Merged from rde_realcardamage — clean RDE OX Standards rewrite
 -- Handles: collision damage, fall damage, wheel dropping, HUD sync
 -- ════════════════════════════════════════════════════════════════
@@ -434,28 +434,32 @@ CreateThread(function()
 end)
 
 -- ════════════════════════════════════════════════════════════════
--- VEHICLE POOL SCANNER
--- Rebuilds BrokenVehicles list every 3 seconds.
+-- BROKEN-LIST GARBAGE COLLECTOR (was: VEHICLE POOL SCANNER)
+-- PERF FIX: previously rebuilt BrokenVehicles from a full
+-- GetGamePool('CVehicle') scan every 3s — i.e. every vehicle on the
+-- server, on a timer, forever. The 'rde_wheeldamage_broken' StateBag
+-- handler below (see "REALTIME STATEBAG SYNC") already adds/removes
+-- entries the instant a wheel breaks or gets repaired, for every
+-- client — including late joiners, since StateBags replay their
+-- current value once an entity becomes relevant to a client. DropWheel()
+-- also inserts your own vehicle directly the moment it breaks, so
+-- "always include current vehicle" was redundant too.
+--
+-- The one thing the incremental path can't do on its own: garbage
+-- collect a vehicle handle that gets destroyed/despawned without ever
+-- being explicitly repaired first. That's the only job left here —
+-- and it only needs to walk the already-small BrokenVehicles list
+-- itself, never the full vehicle pool.
 -- ════════════════════════════════════════════════════════════════
 CreateThread(function()
     while true do
-        local ped  = cache.ped
-        local list = {}
+        Wait(10000)
 
-        for _, veh in ipairs(GetGamePool('CVehicle')) do
-            if DoesEntityExist(veh) and Entity(veh).state.rde_wheeldamage_broken then
-                table.insert(list, veh)
+        for i = #BrokenVehicles, 1, -1 do
+            if not DoesEntityExist(BrokenVehicles[i]) then
+                table.remove(BrokenVehicles, i)
             end
         end
-
-        -- Always include current vehicle so it reacts immediately
-        local curVeh = GetVehiclePedIsIn(ped, false)
-        if curVeh ~= 0 then
-            table.insert(list, curVeh)
-        end
-
-        BrokenVehicles = list
-        Wait(3000)
     end
 end)
 
@@ -647,7 +651,7 @@ AddEventHandler('ox:playerLogout', function()
 end)
 
 if Config.Debug then
-    print('^2[RDE | Cockpit v1.0.0]^0 wheeldmgcl.lua loaded — WheelDamage active')
+    print('^2[RDE | Cockpit v1.0.1]^0 wheeldmgcl.lua loaded — WheelDamage active')
 end
 
 -- ════════════════════════════════════════════════════════════════

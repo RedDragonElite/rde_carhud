@@ -6,7 +6,7 @@ use_experimental_fxv2_oal 'yes'
 name        'rde_carhud'
 author      'Red Dragon Elite | SerpentsByte'
 description 'RDE Vehicle Cockpit — HUD + Engine Control + WheelDamage + Nitro + RepairKit'
-version     '1.0.0-beta'
+version     '1.0.1'
 
 dependencies {
     '/server:7290',

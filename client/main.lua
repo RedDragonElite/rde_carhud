@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════
--- RDE | VEHICLE COCKPIT v1.0.0 — CLIENT/MAIN
+-- RDE | VEHICLE COCKPIT v1.0.1 — CLIENT/MAIN
 -- HUD data loop, seatbelt, cruise control, signals, statebag sync
 -- Engine on/off logic is in client/engine.lua
 -- ════════════════════════════════════════════════════════════════
@@ -286,8 +286,8 @@ CreateThread(function()
     while true do
         Wait(0)
 
-        local ped     = PlayerPedId()
-        local vehicle = GetVehiclePedIsIn(ped, false)
+        local ped     = cache.ped
+        local vehicle = cache.vehicle
 
         if vehicle ~= 0 then
             local vehClass = GetVehicleClass(vehicle)
@@ -665,5 +665,5 @@ CreateThread(function()
 end)
 
 if Config.Debug then
-    print('^2[RDE | Cockpit v1.0.0]^0 client/main.lua loaded')
+    print('^2[RDE | Cockpit v1.0.1]^0 client/main.lua loaded')
 end

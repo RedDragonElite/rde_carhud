@@ -1,4 +1,4 @@
--- RDE | Cockpit v1.0.0 — English locale
+-- RDE | Cockpit v1.0.1 — English locale
 locale = {
     -- General
     success             = 'Success',

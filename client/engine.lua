@@ -1,6 +1,6 @@
 -- ════════════════════════════════════════════════════════════════
--- RDE | VEHICLE COCKPIT v4.1 — CLIENT/ENGINE
--- FIXES v4.1:
+-- RDE | VEHICLE COCKPIT v1.0.1 — CLIENT/ENGINE
+-- FIXES v4.1 (legacy, predates rde_carhud merge):
 --   - GTA stoppt Motor intern nicht mehr via SetVehicleEngineOn false/true Loops
 --   - W-Taste wird via DisableControlAction(0,71) blockiert SOLANGE Motor aus
 --   - SetVehicleEngineOn(veh, false, true, false) = instant+force, verhindert
@@ -8,6 +8,17 @@
 --   - keepRunningOnExit: korrekte Referenz auf zuletzt benutztes Fahrzeug
 --   - Statebag-Handler blockiert eigene Updates (source filter)
 --   - Engine-State Machine: STOPPED / STARTING / RUNNING / STOPPING
+-- FIXES v1.0.1 (2026-06-19):
+--   - vehState[plate] defaulted unknown plates to 'stopped' → jacking a
+--     running NPC vehicle force-killed the engine instantly. Now mirrors
+--     GetIsVehicleEngineRunning() when no StateBag record exists at all.
+--   - Vehicle-exit race condition: the delayed (Wait(200)) engine-restore
+--     thread read the shared `currentVehicle` upvalue, which the separate
+--     ENTER-detection thread could reset to 0 in the same window —
+--     "engine stays on" worked maybe 50% of the time depending on poll
+--     timing. Now snapshots the vehicle handle locally before scheduling
+--     the delayed thread, and explicitly re-syncs via SetState() so every
+--     client + the server's persisted cache agree.
 -- ════════════════════════════════════════════════════════════════
 
 local function L(key, ...)
@@ -519,9 +530,18 @@ CreateThread(function()
             if sbRunning == true and not vehState[plate] then
                 vehState[plate] = 'running'
                 ForceEngineOn(veh)
-            elseif sbRunning == false or (sbRunning == nil and not vehState[plate]) then
+            elseif sbRunning == false then
                 vehState[plate] = 'stopped'
                 ForceEngineOff(veh)
+            elseif sbRunning == nil and not vehState[plate] then
+                -- BUGFIX: no StateBag record exists at all for this plate yet
+                -- (e.g. an NPC-driven vehicle nobody ever touched via this
+                -- script). The old code treated "no record" the same as
+                -- "engine off" and force-killed it the instant you jacked a
+                -- running NPC car. Mirror the vehicle's REAL current engine
+                -- state instead — no forced toggle, just acknowledge reality
+                -- and sync that as the new baseline for other clients/server.
+                SetState(veh, plate, GetIsVehicleEngineRunning(veh) and 'running' or 'stopped')
             end
 
             -- Restore neon
@@ -562,11 +582,25 @@ CreateThread(function()
                 local state = GetState(plate)
 
                 if state == 'running' and Config.EngineControl.keepRunningOnExit then
-                    -- GTA shuts engine on driver exit — force it back on
+                    -- BUGFIX (race condition): the ENTER thread (separate
+                    -- 500ms poll) resets the shared `currentVehicle` upvalue
+                    -- to 0 as soon as it sees you on foot — which can land
+                    -- inside this 200ms window and silently skip
+                    -- ForceEngineOn below ("mal an, mal aus"). Snapshot the
+                    -- handle into a fresh local now so the delayed thread
+                    -- can't have it pulled out from under it.
+                    local exitedVehicle = currentVehicle
+                    local exitedPlate   = plate
                     CreateThread(function()
                         Wait(200) -- wait for GTA's own exit routine
-                        if DoesEntityExist(currentVehicle) then
-                            ForceEngineOn(currentVehicle)
+                        if DoesEntityExist(exitedVehicle) then
+                            ForceEngineOn(exitedVehicle)
+                            -- Explicit re-sync: GTA's exit routine killed the
+                            -- engine natively, we just restarted it — make
+                            -- sure every other client + the server's
+                            -- persisted cache agree via the StateBag, instead
+                            -- of silently relying on whatever was set before.
+                            SetState(exitedVehicle, exitedPlate, 'running')
                             if CanNotify('exit_engine', 8000) then
                                 lib.notify({ title=L('info'), description=L('engine_keeps_running'), type='info', duration=3000, icon=Config.Icons.engine })
                             end
@@ -763,5 +797,5 @@ AddEventHandler('ox:playerLogout', function()
 end)
 
 if Config.Debug then
-    print('^2[RDE | Cockpit v4.1]^0 engine.lua loaded — M=engine, N=neon, K=windows')
+    print('^2[RDE | Cockpit v1.0.1]^0 engine.lua loaded — M=engine, N=neon, K=windows')
 end

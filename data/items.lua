@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════
--- RDE | VEHICLE COCKPIT v1.0.0 — DATA/ITEMS
+-- RDE | VEHICLE COCKPIT v1.0.1 — DATA/ITEMS
 -- ox_inventory item use export handlers
 -- ════════════════════════════════════════════════════════════════
 
@@ -178,5 +178,5 @@ exports('use_rde_ersatzreifen', function(data, slot)
 end)
 
 if Config.Debug then
-    print('^2[RDE | Cockpit v1.0.0]^0 data/items.lua loaded — ersatzreifen + nitro + fixkit')
+    print('^2[RDE | Cockpit v1.0.1]^0 data/items.lua loaded — ersatzreifen + nitro + fixkit')
 end

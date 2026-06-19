@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════
--- RDE | VEHICLE COCKPIT v1.0.0 — CLIENT/VEHICLEFAILURE
+-- RDE | VEHICLE COCKPIT v1.0.1 — CLIENT/VEHICLEFAILURE
 -- Next-gen rewrite of esx_RealisticVehicleFailure
 --
 -- Architecture:
@@ -287,15 +287,16 @@ end)
 if Config.VehicleFailure.preventVehicleFlip then
     CreateThread(function()
         while true do
-            Wait(10)
-            local ped = cache.ped
             local veh = cache.vehicle
-            if veh ~= 0 and GetPedInVehicleSeat(veh, -1) == ped then
+            if veh ~= 0 and GetPedInVehicleSeat(veh, -1) == cache.ped then
                 local roll = GetEntityRoll(veh)
                 if math.abs(roll) > 75.0 and GetEntitySpeed(veh) < 2.0 then
                     DisableControlAction(0, 59, true)
                     DisableControlAction(0, 60, true)
                 end
+                Wait(10)
+            else
+                Wait(500)
             end
         end
     end)
@@ -564,5 +565,5 @@ exports('isVehicleInLimpMode', function(veh)
 end)
 
 if Config.Debug then
-    print('^2[RDE | Cockpit v1.0.0]^0 vehiclefailurecl.lua loaded — AAA damage sim active')
+    print('^2[RDE | Cockpit v1.0.1]^0 vehiclefailurecl.lua loaded — AAA damage sim active')
 end

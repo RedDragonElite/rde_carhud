@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════
--- RDE | VEHICLE COCKPIT v1.0.0 — CLIENT/NITRO
+-- RDE | VEHICLE COCKPIT v1.0.1 — CLIENT/NITRO
 -- Nitro boost system with statebag sync + exhaust flames.
 -- Display is now handled by the NUI cockpit (no more 2D text).
 -- ════════════════════════════════════════════════════════════════
@@ -13,6 +13,12 @@ local currentVehicle = nil
 local exhausts       = {}
 local soundofnitro   = nil
 local soundActive    = false
+
+-- PERF FIX (RDE OX Standards anti-pattern #5: polling where statebag exists):
+-- Set of vehicles whose 'nitroActive' StateBag is currently true. Maintained
+-- by the AddStateBagChangeHandler below — the flame thread reads this instead
+-- of scanning GetGamePool('CVehicle') every tick.
+local ActiveNitroVehicles = {}
 
 -- ════════════════════════════════════════════════════════════════
 -- HELPERS
@@ -153,37 +159,50 @@ CreateThread(function()
 end)
 
 -- ════════════════════════════════════════════════════════════════
--- EXHAUST FLAME THREAD (all nearby vehicles)
+-- EXHAUST FLAME THREAD (nearby vehicles with active nitro)
+-- PERF FIX: previously scanned GetGamePool('CVehicle') every 10ms
+-- regardless of vehicle state — measured 0.44ms/33% CPU even on foot.
+-- Now reacts to ActiveNitroVehicles (maintained by the nitroActive
+-- StateBag handler below) instead of polling every vehicle on the
+-- server. Sleeps at 1000ms whenever nobody nearby has nitro engaged
+-- (the overwhelming majority of the time), only ticking at the
+-- configured FlameInterval while there's actually something to render.
 -- ════════════════════════════════════════════════════════════════
 CreateThread(function()
     while true do
-        Wait(Config.Nitro.FlameInterval)
-        local myPos   = GetEntityCoords(cache.ped)
-        local vehicles = GetGamePool('CVehicle')
-        for _, veh in ipairs(vehicles) do
-            if DoesEntityExist(veh) then
-                local d = #(myPos - GetEntityCoords(veh))
-                if d < 100.0 and IsVehicleNitroActive(veh) then
-                    if veh ~= currentVehicle then
-                        local temp = {}
-                        if IsThisModelACar(GetEntityModel(veh)) then
-                            local m = GetEntityBoneIndexByName(veh, 'exhaust')
-                            if m ~= -1 then table.insert(temp, m) end
-                            for i = 1, 12 do
-                                local ex = GetEntityBoneIndexByName(veh, 'exhaust_' .. i)
-                                if ex ~= -1 then table.insert(temp, ex) end
+        if next(ActiveNitroVehicles) == nil then
+            Wait(1000)
+        else
+            Wait(Config.Nitro.FlameInterval)
+
+            local myPos = GetEntityCoords(cache.ped)
+            for veh in pairs(ActiveNitroVehicles) do
+                if not DoesEntityExist(veh) then
+                    ActiveNitroVehicles[veh] = nil
+                else
+                    local d = #(myPos - GetEntityCoords(veh))
+                    if d < 100.0 then
+                        if veh ~= currentVehicle then
+                            local temp = {}
+                            if IsThisModelACar(GetEntityModel(veh)) then
+                                local m = GetEntityBoneIndexByName(veh, 'exhaust')
+                                if m ~= -1 then table.insert(temp, m) end
+                                for i = 1, 12 do
+                                    local ex = GetEntityBoneIndexByName(veh, 'exhaust_' .. i)
+                                    if ex ~= -1 then table.insert(temp, ex) end
+                                end
+                                if #temp > 0 then
+                                    -- temporarily swap exhausts for effect
+                                    local saved = exhausts
+                                    exhausts = temp
+                                    CreateFlameEffect(veh, #temp)
+                                    exhausts = saved
+                                end
                             end
-                            if #temp > 0 then
-                                -- temporarily swap exhausts for effect
-                                local saved = exhausts
-                                exhausts = temp
-                                CreateFlameEffect(veh, #temp)
-                                exhausts = saved
+                        else
+                            if #exhausts > 0 then
+                                CreateFlameEffect(veh, #exhausts)
                             end
-                        end
-                    else
-                        if #exhausts > 0 then
-                            CreateFlameEffect(veh, #exhausts)
                         end
                     end
                 end
@@ -212,12 +231,20 @@ end)
 
 AddStateBagChangeHandler('nitroActive', nil, function(bagName, _, value)
     if value == nil then return end
+    local entity = GetEntityFromStateBagName(bagName)
+    if entity == 0 or not DoesEntityExist(entity) then return end
+
+    -- PERF FIX: track active-nitro vehicles here instead of polling the
+    -- entire vehicle pool in the flame thread (see ActiveNitroVehicles above)
+    if value then
+        ActiveNitroVehicles[entity] = true
+    else
+        ActiveNitroVehicles[entity] = nil
+    end
+
     if Config.Debug then
-        local entity = GetEntityFromStateBagName(bagName)
-        if DoesEntityExist(entity) then
-            local plate = GetVehicleNumberPlateText(entity):gsub('%s+', '')
-            print(('[Nitro] Vehicle %s nitroActive: %s'):format(plate, tostring(value)))
-        end
+        local plate = GetVehicleNumberPlateText(entity):gsub('%s+', '')
+        print(('[Nitro] Vehicle %s nitroActive: %s'):format(plate, tostring(value)))
     end
 end)
 

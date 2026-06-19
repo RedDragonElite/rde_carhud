@@ -1,6 +1,6 @@
 # 🐉 RDE Car HUD — Vehicle Cockpit Suite
 
-[![Version](https://img.shields.io/badge/version-1.0.0--beta-red?style=for-the-badge&logo=github)](https://github.com/RedDragonElite/rde_carhud)
+[![Version](https://img.shields.io/badge/version-1.0.1-red?style=for-the-badge&logo=github)](https://github.com/RedDragonElite/rde_carhud)
 [![Beta](https://img.shields.io/badge/status-COMMUNITY%20BETA-orange?style=for-the-badge)](https://github.com/RedDragonElite/rde_carhud/issues)
 [![License](https://img.shields.io/badge/license-RDE%20Black%20Flag%20v6.66-black?style=for-the-badge)](LICENSE)
 [![FiveM](https://img.shields.io/badge/FiveM-Compatible-orange?style=for-the-badge)](https://fivem.net)
@@ -9,13 +9,11 @@
 
 **Analog cockpit gauges · Realtime wheel damage · Engine failure simulation · StateBag-first architecture · Zero ESX**
 
-> ⚠️ **COMMUNITY BETA — v1.0.0-beta** · Core systems tested and confirmed working. Some edge cases may remain. Found a bug? [Open an issue](https://github.com/RedDragonElite/rde_carhud/issues) — hotfixes ship fast.
+> ⚠️ **COMMUNITY BETA — v1.0.1** · Core systems tested and confirmed working. Some edge cases may remain. Found a bug? [Open an issue](https://github.com/RedDragonElite/rde_carhud/issues) — hotfixes ship fast.
 
 Built on ox_core · ox_lib · ox_inventory · oxmysql
 
 *Built by [Red Dragon Elite](https://rd-elite.com) | SerpentsByte*
-
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/c2e2f302-f15f-4559-868f-270e12e5df58" />
 
 ---
 
@@ -40,14 +38,7 @@ Built on ox_core · ox_lib · ox_inventory · oxmysql
 
 ## 🎯 Overview
 
-**RDE Car HUD** is a production-grade all-in-one vehicle experience system for FiveM servers. Four separate resources have been merged into one clean, zero-dependency suite:
-
-| Merged From | What it did | RDE Replacement |
-|---|---|---|
-| Generic speedometer HUDs | Basic NUI gauges | Analog cockpit w/ turbo, nitro, tires |
-| `rde_realcardamage` | Wheel damage + drop | `client/wheeldmgcl.lua` — clean rewrite |
-| `esx_RealisticVehicleFailure` | ESX damage sim | `client/vehiclefailurecl.lua` — StateBag sync |
-| Standalone nitro scripts | 2D text displays | Integrated NUI bar, entity-bone flames |
+**RDE Car HUD** is a production-grade all-in-one vehicle experience system for FiveM servers — analog cockpit gauges, wheel damage simulation, cascading engine failure, and nitro in one clean, zero-dependency suite.
 
 ### Why RDE Car HUD?
 
@@ -567,7 +558,8 @@ Data is saved every **5 km** driven or on vehicle exit. No manual imports needed
 | Wheel fall damage | 25ms | Driver, not blacklisted |
 | Wheel collision damage | 1–50ms | Driver, vehicle damaged |
 | Wheel visual state | 300ms → 1ms | Vehicles in BrokenVehicles list |
-| Vehicle pool scan | 3000ms | Always (very cheap) |
+| Broken-list garbage collection | 10000ms | Prunes only already-tracked entries — **no full vehicle pool scan** (v1.0.1) |
+| Exhaust flame burst | 10ms / 1000ms | Only while ≥1 vehicle has `nitroActive` StateBag set — **no full vehicle pool scan** (v1.0.1) |
 | Effect maintenance | 2000ms | Vehicles with active effects |
 | Spark bursts | 500–2000ms | limp/dead phase vehicles nearby |
 | Vehicle failure damage | 50ms | Driver only |
@@ -583,12 +575,18 @@ Data is saved every **5 km** driven or on vehicle exit. No manual imports needed
 
 ### Benchmarks
 
+Measured live via F8 Resource Monitor, not estimates.
+
 | Scenario | Overhead |
 |---|---|
+| On foot, not in any vehicle (pre-v1.0.1, exhaust flame bug) | 0.44ms / 33.87% Time % ⚠️ |
+| On foot, not in any vehicle (v1.0.1) | **0.04–0.05ms / ~5–7% Time %** |
 | Idle in vehicle (driver) | ~0.02ms |
 | Driving, all systems active | ~0.08ms |
 | Wheel dropped, 3 clients watching | <0.1ms sync |
 | Vehicle in limp phase (sparks) | ~0.05ms |
+
+The pre-v1.0.1 number above was a real production bug, not a hypothetical: the nitro exhaust-flame thread scanned the entire server's vehicle pool (`GetGamePool('CVehicle')`) every 10ms regardless of vehicle state. See [Changelog](#-changelog).
 
 ---
 
@@ -619,11 +617,35 @@ StateBag `rde_vf_phase` must be set by the driver's client. Check that `Config.V
 StateBag `blinkerSignal` is set on blinker toggle. Ensure the vehicle is networked (not a local entity). Check `Config.Vehicle.statebagSync = true`.
 
 **Database table not created?**
-Ensure `oxmysql` is fully started before `rde_carhud` in `server.cfg`. Check server console for `[RDE | Cockpit v1.0.0] Database table rde_vehicle_data initialized`.
+Ensure `oxmysql` is fully started before `rde_carhud` in `server.cfg`. Check server console for `[RDE Cockpit v1.0.1] Database table rde_vehicle_data initialized`.
 
 ---
 
 ## 📝 Changelog
+
+### v1.0.1 — 2026-06-19 — Performance & Engine-State Hotfix
+
+**Status:** Found and fixed during a live F8 Resource Monitor audit — `rde_carhud` was measured at 0.44ms / 33.87% Time % on a player standing on foot, not in any vehicle. Root-caused, patched, and re-tested down to 0.04–0.05ms. All fixes are surgical patches, no architectural changes — behavior is identical, just without the wasted cycles.
+
+**⚡ Performance — eliminated two full-server vehicle pool scans:**
+- `client/nitrocl.lua` — the exhaust flame thread called `GetGamePool('CVehicle')` every **10ms**, scanning every vehicle on the server regardless of whether anyone had nitro active or you were even in a vehicle. This was the dominant cost (~88% of the measured overhead). Replaced with an `ActiveNitroVehicles` set maintained directly by the existing `nitroActive` StateBag handler — the thread now only iterates vehicles that actually have nitro engaged, and sleeps at 1000ms whenever that set is empty (the overwhelming majority of the time).
+- `client/wheeldmgcl.lua` — the "Vehicle Pool Scanner" rebuilt `BrokenVehicles` from a full `GetGamePool('CVehicle')` scan every 3s. Fully redundant: the `rde_wheeldamage_broken` StateBag handler already adds/removes entries in real time for every client (including late joiners, since StateBags replay their current value once an entity becomes relevant), and `DropWheel()` already inserts your own vehicle directly the instant it breaks. The thread now only garbage-collects destroyed/stale handles from the already-small `BrokenVehicles` list itself — never the full pool.
+
+**⚡ Performance — standards compliance:**
+- `client/main.lua` — seatbelt eject thread now uses `cache.ped` / `cache.vehicle` instead of `PlayerPedId()` / `GetVehiclePedIsIn()` per RDE OX Standards (one fewer native call per idle cycle).
+- `client/vehiclefailurecl.lua` — prevent-vehicle-flip thread (off by default) now throttles to `Wait(500)` when not driving instead of an unconditional `Wait(10)` forever.
+
+**🐛 Bugfix — engine state default-stopped on unknown vehicles:**
+- `GetState(plate)` defaults any plate the script has never tracked to `'stopped'`. The vehicle-enter handler treated "no `rde_engineRunning` StateBag record" the same as "engine off" and force-killed it — meaning jacking *any* running NPC-driven vehicle instantly stalled the engine. Now mirrors `GetIsVehicleEngineRunning()` when there's no prior record anywhere, instead of assuming off.
+
+**🐛 Bugfix — vehicle-exit engine race condition ("mal an, mal aus"):**
+- The "keep engine running on exit" logic scheduled a `Wait(200)` delayed thread that read the shared `currentVehicle` upvalue — but a *separate* 500ms-poll thread could reset that same upvalue to `0` in the meantime (as soon as it saw you on foot), silently skipping the engine restore. Whether the engine stayed on was a coin flip depending on how the two independent poll cycles happened to line up. Fixed by snapshotting the vehicle handle into a fresh local before scheduling the delayed thread. Also now explicitly re-syncs via `SetState()` after restoring the engine, so every other client and the server's persisted cache agree — not just the local client.
+
+**📝 Documentation:**
+- Removed the "four resources merged" overview table — outdated framing now that this is a mature standalone suite.
+- Thread Budget and Benchmarks tables in [Performance](#-performance) updated to reflect the actual v1.0.1 numbers, measured live rather than estimated.
+
+---
 
 ### v1.0.0-beta — 2026-06-14 — Community Beta Release
 
@@ -671,7 +693,7 @@ Ensure `oxmysql` is fully started before `rde_carhud` in `server.cfg`. Check ser
 #                                                                                 #
 #      .:: RED DRAGON ELITE (RDE)  -  BLACK FLAG SOURCE LICENSE v6.66 ::.         #
 #                                                                                 #
-#   PROJECT:    RDE_CARHUD v1.0.0 (VEHICLE COCKPIT | DAMAGE SIM | HUD SUITE)     #
+#   PROJECT:    RDE_CARHUD v1.0.1 (VEHICLE COCKPIT | DAMAGE SIM | HUD SUITE)     #
 #   ARCHITECT:  .:: RDE ⧌ Shin [△ ᛋᛅᚱᛒᛅᚾᛏᛋ ᛒᛁᛏᛅ ▽] ::. | https://rd-elite.com     #
 #   ORIGIN:     https://github.com/RedDragonElite                                 #
 #                                                                                 #

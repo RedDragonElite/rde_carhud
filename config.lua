@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════
--- RDE | VEHICLE COCKPIT v1.0.0 - CONFIG
+-- RDE | VEHICLE COCKPIT v1.0.1 - CONFIG
 -- Merged: HUD + Engine Control + WheelDamage + Nitro + RepairKit
 -- ════════════════════════════════════════════════════════════════
 

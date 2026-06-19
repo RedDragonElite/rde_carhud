@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════
--- RDE | VEHICLE COCKPIT v1.0.0 — SERVER/WHEELDMG
+-- RDE | VEHICLE COCKPIT v1.0.1 — SERVER/WHEELDMG
 -- Authoritative statebag sync for wheel damage state.
 -- Merged from rde_realcardamage server.lua
 -- ════════════════════════════════════════════════════════════════
@@ -92,4 +92,4 @@ exports('fixAllWheels', function(vehicleNetId)
     return true
 end)
 
-print('^2[RDE | Cockpit v1.0.0]^0 wheeldmgsrv.lua loaded — WheelDamage + SpareTire active')
+print('^2[RDE | Cockpit v1.0.1]^0 wheeldmgsrv.lua loaded — WheelDamage + SpareTire active')

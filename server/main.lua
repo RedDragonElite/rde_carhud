@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════
--- RDE | VEHICLE COCKPIT v1.0.0 — SERVER/MAIN
+-- RDE | VEHICLE COCKPIT v1.0.1 — SERVER/MAIN
 -- DB auto-create, mileage persistence, engine state sync,
 -- blinker relay, eject relay, admin commands
 -- RDE OX Standards: server validates everything, no client authority
@@ -56,7 +56,7 @@ MySQL.ready(function()
             INDEX `idx_plate` (`plate`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ]])
-    print('^2[RDE Cockpit v1.0.0]^0 Database table rde_vehicle_data initialized')
+    print('^2[RDE Cockpit v1.0.1]^0 Database table rde_vehicle_data initialized')
 end)
 
 -- ════════════════════════════════════════════════════════════════
@@ -322,7 +322,7 @@ exports('isEngineRunning',      function(plate) return engineStates[plate] == tr
 -- STARTUP
 -- ════════════════════════════════════════════════════════════════
 print('^2════════════════════════════════════════^0')
-print('^2[RDE | Cockpit v1.0.0]^0 server loaded successfully')
-print('^2[RDE | Cockpit v1.0.0]^0 Engine Control: integrated (M key)')
-print('^2[RDE | Cockpit v1.0.0]^0 DB auto-save: ' .. tostring(Config.Database.saveInterval / 1000) .. 's interval')
+print('^2[RDE | Cockpit v1.0.1]^0 server loaded successfully')
+print('^2[RDE | Cockpit v1.0.1]^0 Engine Control: integrated (M key)')
+print('^2[RDE | Cockpit v1.0.1]^0 DB auto-save: ' .. tostring(Config.Database.saveInterval / 1000) .. 's interval')
 print('^2════════════════════════════════════════^0')
